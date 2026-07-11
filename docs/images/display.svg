@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420" font-family="'Hiragino Sans','Yu Gothic','Meiryo',sans-serif">
+  <rect width="960" height="420" rx="12" fill="#fafafa" stroke="#e0e0e0"/>
+  <text x="480" y="42" text-anchor="middle" font-size="22" font-weight="bold" fill="#333">画面の見かた</text>
+
+  <!-- 左: 検出時 -->
+  <g>
+    <text x="250" y="80" text-anchor="middle" font-size="16" font-weight="bold" fill="#2e7d32">動きを検出しているとき</text>
+    <rect x="100" y="95" width="300" height="180" rx="10" fill="#111" stroke="#ff6d00" stroke-width="6"/>
+    <!-- 上段 -->
+    <rect x="106" y="101" width="288" height="53" fill="#00c853"/>
+    <text x="250" y="136" text-anchor="middle" font-size="26" font-weight="bold" fill="#000">見守り中</text>
+    <!-- 中段 -->
+    <text x="250" y="192" text-anchor="middle" font-size="20" fill="#fff" font-family="monospace">2026-07-11 12:34:56</text>
+    <!-- 下段 -->
+    <rect x="106" y="216" width="288" height="53" fill="#00c853"/>
+    <text x="250" y="251" text-anchor="middle" font-size="26" font-weight="bold" fill="#000">検出</text>
+  </g>
+
+  <!-- 右: 未検出時 -->
+  <g>
+    <text x="710" y="80" text-anchor="middle" font-size="16" font-weight="bold" fill="#1565c0">動きが無いとき</text>
+    <rect x="560" y="95" width="300" height="180" rx="10" fill="#111" stroke="#ff6d00" stroke-width="6"/>
+    <rect x="566" y="101" width="288" height="53" fill="#00c853"/>
+    <text x="710" y="136" text-anchor="middle" font-size="26" font-weight="bold" fill="#000">見守り中</text>
+    <text x="710" y="192" text-anchor="middle" font-size="20" fill="#fff" font-family="monospace">2026-07-11 12:34:56</text>
+    <rect x="566" y="216" width="288" height="53" fill="#1565c0"/>
+    <text x="710" y="251" text-anchor="middle" font-size="26" font-weight="bold" fill="#fff">未検出</text>
+  </g>
+
+  <!-- 注釈 -->
+  <g font-size="14" fill="#555">
+    <text x="480" y="320" text-anchor="middle">上段:見守り状態(緑=見守り中/赤=停止中)… 本体のボタンAで切り替え</text>
+    <text x="480" y="348" text-anchor="middle">中段:現在時刻(NTPから自動取得)</text>
+    <text x="480" y="376" text-anchor="middle">下段:PIRセンサの検出状態(緑=検出/青=未検出)</text>
+  </g>
+</svg>

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 460" font-family="'Hiragino Sans','Yu Gothic','Meiryo',sans-serif">
+  <rect width="960" height="460" rx="12" fill="#fafafa" stroke="#e0e0e0"/>
+  <text x="480" y="42" text-anchor="middle" font-size="22" font-weight="bold" fill="#333">通知のしくみ</text>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#90a4ae"/>
+    </marker>
+  </defs>
+
+  <!-- Step 1 -->
+  <g>
+    <rect x="60" y="80" width="260" height="90" rx="10" fill="#e8f5e9" stroke="#66bb6a" stroke-width="2"/>
+    <text x="190" y="115" text-anchor="middle" font-size="16" font-weight="bold" fill="#2e7d32">① 動きを検出</text>
+    <text x="190" y="145" text-anchor="middle" font-size="13" fill="#444">タイマーをリセット(通知なし)</text>
+  </g>
+  <line x1="190" y1="170" x2="190" y2="220" stroke="#90a4ae" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="205" y="200" font-size="13" fill="#666">動きが無いまま時間が経過…</text>
+
+  <!-- Step 2 -->
+  <g>
+    <rect x="60" y="225" width="260" height="110" rx="10" fill="#fff3e0" stroke="#ffa726" stroke-width="2"/>
+    <text x="190" y="258" text-anchor="middle" font-size="16" font-weight="bold" fill="#e65100">② 24時間 動きなし</text>
+    <text x="190" y="286" text-anchor="middle" font-size="13" fill="#444">「⚠ 未検出通知」を送信</text>
+    <text x="190" y="310" text-anchor="middle" font-size="12" fill="#888">イベント名: AliveMonitoring</text>
+  </g>
+  <line x1="320" y1="280" x2="420" y2="280" stroke="#90a4ae" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="370" y="265" text-anchor="middle" font-size="12" fill="#666">その後…</text>
+
+  <!-- Step 3a -->
+  <g>
+    <rect x="430" y="185" width="280" height="100" rx="10" fill="#e8f5e9" stroke="#66bb6a" stroke-width="2"/>
+    <text x="570" y="218" text-anchor="middle" font-size="16" font-weight="bold" fill="#2e7d32">③ 動きを再検出</text>
+    <text x="570" y="246" text-anchor="middle" font-size="13" fill="#444">「✓ 生存確認通知」を送信</text>
+    <text x="570" y="270" text-anchor="middle" font-size="12" fill="#888">イベント名: DetectEvent</text>
+  </g>
+
+  <!-- Step 3b -->
+  <g>
+    <rect x="430" y="305" width="280" height="100" rx="10" fill="#ffebee" stroke="#ef5350" stroke-width="2"/>
+    <text x="570" y="338" text-anchor="middle" font-size="16" font-weight="bold" fill="#c62828">③' さらに動きが無い場合</text>
+    <text x="570" y="366" text-anchor="middle" font-size="13" fill="#444">24時間ごとに「⚠ 未検出通知」を</text>
+    <text x="570" y="388" text-anchor="middle" font-size="13" fill="#444">繰り返し送信 → 安否確認へ</text>
+  </g>
+
+  <line x1="420" y1="280" x2="430" y2="235" stroke="#90a4ae" stroke-width="3" marker-end="url(#arrow)"/>
+  <line x1="420" y1="280" x2="430" y2="355" stroke="#90a4ae" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <!-- 補足 -->
+  <g>
+    <rect x="740" y="185" width="170" height="220" rx="10" fill="#f3e5f5" stroke="#ab47bc" stroke-width="2"/>
+    <text x="825" y="215" text-anchor="middle" font-size="14" font-weight="bold" fill="#6a1b9a">ポイント</text>
+    <text x="825" y="245" text-anchor="middle" font-size="12" fill="#444">通知の間隔は</text>
+    <text x="825" y="265" text-anchor="middle" font-size="12" fill="#444">config.h の</text>
+    <text x="825" y="285" text-anchor="middle" font-size="12" fill="#444">LIMIT_TIME_SEC で</text>
+    <text x="825" y="305" text-anchor="middle" font-size="12" fill="#444">自由に変更できます</text>
+    <text x="825" y="340" text-anchor="middle" font-size="12" fill="#444">(初期値: 86400秒</text>
+    <text x="825" y="360" text-anchor="middle" font-size="12" fill="#444">= 24時間)</text>
+  </g>
+
+  <text x="480" y="440" text-anchor="middle" font-size="13" fill="#666">トイレや廊下など「生活していれば必ず1日1回は通る場所」に置くのがコツです</text>
+</svg>

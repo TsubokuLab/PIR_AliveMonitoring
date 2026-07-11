@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 340" font-family="'Hiragino Sans','Yu Gothic','Meiryo',sans-serif">
+  <rect width="960" height="340" rx="12" fill="#fafafa" stroke="#e0e0e0"/>
+  <text x="480" y="42" text-anchor="middle" font-size="22" font-weight="bold" fill="#333">システム構成</text>
+
+  <!-- M5StickC Plus + PIR Hat -->
+  <g>
+    <!-- PIR Hat -->
+    <rect x="90" y="80" width="70" height="42" rx="8" fill="#37474f"/>
+    <circle cx="125" cy="101" r="16" fill="#eceff1" stroke="#b0bec5" stroke-width="2"/>
+    <text x="125" y="72" text-anchor="middle" font-size="13" fill="#555">PIR Hat(人感センサ)</text>
+    <!-- 本体 -->
+    <rect x="95" y="122" width="60" height="130" rx="10" fill="#ff6d00"/>
+    <rect x="103" y="134" width="44" height="82" rx="3" fill="#111"/>
+    <rect x="103" y="134" width="44" height="24" fill="#2e7d32"/>
+    <text x="125" y="151" text-anchor="middle" font-size="10" fill="#fff">見守り中</text>
+    <text x="125" y="180" text-anchor="middle" font-size="8" fill="#fff">12:34:56</text>
+    <text x="125" y="205" text-anchor="middle" font-size="10" fill="#90caf9">未検出</text>
+    <circle cx="125" cy="232" r="8" fill="#e65100" stroke="#bf360c"/>
+    <text x="125" y="275" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">M5StickC Plus</text>
+    <text x="125" y="295" text-anchor="middle" font-size="12" fill="#666">トイレなど毎日必ず</text>
+    <text x="125" y="311" text-anchor="middle" font-size="12" fill="#666">使う場所に設置</text>
+  </g>
+
+  <!-- 動きの検出 -->
+  <g stroke="#fbc02d" stroke-width="2" fill="none">
+    <path d="M 60 90 q -18 11 0 22"/>
+    <path d="M 48 82 q -28 19 0 38"/>
+  </g>
+  <text x="42" y="145" text-anchor="middle" font-size="12" fill="#8d6e63">動き</text>
+
+  <!-- Arrow 1: Wi-Fi -->
+  <g>
+    <line x1="185" y1="165" x2="320" y2="165" stroke="#90a4ae" stroke-width="4" stroke-dasharray="10 6"/>
+    <polygon points="320,165 304,156 304,174" fill="#90a4ae"/>
+    <text x="252" y="150" text-anchor="middle" font-size="14" fill="#546e7a">Wi-Fi</text>
+  </g>
+
+  <!-- IFTTT cloud -->
+  <g>
+    <ellipse cx="410" cy="165" rx="82" ry="52" fill="#e3f2fd" stroke="#64b5f6" stroke-width="2"/>
+    <text x="410" y="160" text-anchor="middle" font-size="20" font-weight="bold" fill="#1565c0">IFTTT</text>
+    <text x="410" y="184" text-anchor="middle" font-size="13" fill="#1976d2">Webhooks</text>
+    <text x="410" y="250" text-anchor="middle" font-size="12" fill="#666">無料のWeb連携サービス</text>
+  </g>
+
+  <!-- Arrow 2 -->
+  <g>
+    <line x1="500" y1="165" x2="620" y2="165" stroke="#90a4ae" stroke-width="4"/>
+    <polygon points="620,165 604,156 604,174" fill="#90a4ae"/>
+    <text x="560" y="150" text-anchor="middle" font-size="13" fill="#546e7a">通知</text>
+  </g>
+
+  <!-- Smartphone -->
+  <g>
+    <rect x="640" y="90" width="90" height="160" rx="12" fill="#37474f"/>
+    <rect x="648" y="102" width="74" height="126" rx="4" fill="#eceff1"/>
+    <rect x="654" y="112" width="62" height="34" rx="6" fill="#fff" stroke="#cfd8dc"/>
+    <text x="685" y="126" text-anchor="middle" font-size="8" fill="#d32f2f" font-weight="bold">⚠ 通知</text>
+    <text x="685" y="138" text-anchor="middle" font-size="7" fill="#555">トイレが1日使われて</text>
+    <rect x="654" y="152" width="62" height="34" rx="6" fill="#fff" stroke="#cfd8dc"/>
+    <text x="685" y="166" text-anchor="middle" font-size="8" fill="#2e7d32" font-weight="bold">✓ 生存確認</text>
+    <text x="685" y="178" text-anchor="middle" font-size="7" fill="#555">1日と2時間ぶりに使用</text>
+    <text x="685" y="275" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">家族・友人のスマホ</text>
+    <text x="685" y="295" text-anchor="middle" font-size="12" fill="#666">アプリ通知・メール</text>
+    <text x="685" y="311" text-anchor="middle" font-size="12" fill="#666">Discordなど</text>
+  </g>
+</svg>

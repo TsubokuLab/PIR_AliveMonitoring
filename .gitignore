@@ -1,0 +1,16 @@
+# 個人設定(WiFiパスワード・IFTTTキーを含むため絶対にコミットしない)
+config.h
+
+# Arduino IDE / デバッグ用の自動生成ファイル
+debug.cfg
+debug_custom.json
+esp32.svd
+build/
+*.bin
+*.elf
+*.map
+
+# エディタ・OS固有ファイル
+.vscode/
+.DS_Store
+Thumbs.db
