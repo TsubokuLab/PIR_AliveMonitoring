@@ -39,6 +39,7 @@ const int LED_PIN = 10;      // 本体内蔵の赤色LED (LOWで点灯)
 bool detect = false, prev_detect = false;
 bool AliveMonitoring = true; // 見守り中かどうか(ボタンAで切り替え)
 bool LastSent = false;       // 未検出通知を送信済みかどうか
+bool force_redraw = true;    // 起動直後の初回描画用
 
 // WiFi接続待ち
 bool checkWifiConnected() {
@@ -114,7 +115,7 @@ void send(String trigger, String value1, String value2) {
       if (millis() - start_ms > 10000) {
         Serial.println("\nResponse timeout.");
         client.stop();
-        return;
+        break;
       }
       delay(50);
       Serial.print(".");
@@ -130,6 +131,9 @@ void send(String trigger, String value1, String value2) {
       client.stop();
     }
   }
+  // 送信中に画面へ描かれたWiFi接続メッセージを消して再描画させる
+  M5.Lcd.fillScreen(BLACK);
+  force_redraw = true;
 }
 
 void setup() {
@@ -151,6 +155,8 @@ void setup() {
   checkLocalTime();
   last_t = sent_t = t;
   pinMode(PIR_PIN, INPUT_PULLUP);
+  // 起動時のWiFi接続メッセージを消してから通常画面へ
+  M5.Lcd.fillScreen(BLACK);
 }
 
 void loop() {
@@ -161,27 +167,46 @@ void loop() {
     ringBeep(3000, 100);
     AliveMonitoring = !AliveMonitoring;
   }
-  if (AliveMonitoring) {
-    M5.Lcd.fillRect(0, 0, M5.Lcd.width(), 40, GREEN);
-    M5.Lcd.setTextSize(2);
-    M5.Lcd.setTextColor(BLACK, GREEN);
-    printEfont("見守り中", 55, 4, 2);
-  } else {
-    M5.Lcd.fillRect(0, 0, M5.Lcd.width(), 40, RED);
-    M5.Lcd.setTextSize(2);
-    M5.Lcd.setTextColor(BLACK, RED);
-    printEfont("停止中", 70, 4, 2);
+  // 見守り状態の表示(ちらつき防止のため状態が変わったときだけ再描画)
+  static bool prev_alive = true;
+  if (AliveMonitoring != prev_alive || force_redraw) {
+    if (AliveMonitoring) {
+      M5.Lcd.fillRect(0, 0, M5.Lcd.width(), 40, GREEN);
+      M5.Lcd.setTextSize(2);
+      M5.Lcd.setTextColor(BLACK, GREEN);
+      printEfont("見守り中", 55, 4, 2);
+    } else {
+      M5.Lcd.fillRect(0, 0, M5.Lcd.width(), 40, RED);
+      M5.Lcd.setTextSize(2);
+      M5.Lcd.setTextColor(BLACK, RED);
+      printEfont("停止中", 70, 4, 2);
+    }
+    prev_alive = AliveMonitoring;
+  }
+  if (!AliveMonitoring) {
+    // 停止中はタイマーを進めない(再開時にゼロから計測)
     last_t = sent_t = t;
     LastSent = false;
   }
   // PIRセンサ読み取り
-  if (digitalRead(PIR_PIN)) {
-    detect = true;
-    digitalWrite(LED_PIN, LOW); // LOWで点灯
-    M5.Lcd.fillRect(0, 80, M5.Lcd.width(), 80, GREEN);
-    M5.Lcd.setTextColor(BLACK, GREEN);
-    printEfont("検出", 70, 85, 3);
-    M5.Lcd.setTextColor(WHITE);
+  detect = digitalRead(PIR_PIN);
+  digitalWrite(LED_PIN, detect ? LOW : HIGH); // LOWで点灯
+  // 検出状態の表示(こちらも変化したときだけ再描画)
+  if (detect != prev_detect || force_redraw) {
+    if (detect) {
+      M5.Lcd.fillRect(0, 80, M5.Lcd.width(), 80, GREEN);
+      M5.Lcd.setTextColor(BLACK, GREEN);
+      printEfont("検出", 70, 85, 3);
+    } else {
+      M5.Lcd.fillRect(0, 80, M5.Lcd.width(), 80, BLUE);
+      M5.Lcd.setTextColor(WHITE, BLUE);
+      printEfont("未検出", 45, 85, 3);
+    }
+    Serial.println(detect ? "Detect!" : "Lost");
+  }
+  prev_detect = detect;
+  force_redraw = false; // ここから先でsend()が呼ばれると再度trueになり、次のループで再描画される
+  if (detect) {
     // 未検出通知を送った後に動きを再検出した場合は「生存確認」を通知
     if (LastSent) {
       int _seconds = difftime(t, last_t);
@@ -189,17 +214,7 @@ void loop() {
       LastSent = false;
     }
     last_t = sent_t = t;
-  } else {
-    detect = false;
-    digitalWrite(LED_PIN, HIGH); // HIGHで消灯
-    M5.Lcd.fillRect(0, 80, M5.Lcd.width(), 80, BLUE);
-    M5.Lcd.setTextColor(WHITE, BLUE);
-    printEfont("未検出", 45, 85, 3);
   }
-  if (detect != prev_detect) {
-    Serial.println(detect ? "Detect!" : "Lost");
-  }
-  prev_detect = detect;
   // 一定時間以上動きが検出されていない場合にIFTTTへ通知
   double diff = difftime(t, sent_t);
   double diff_total = difftime(t, last_t);
@@ -214,13 +229,15 @@ void loop() {
   delay(500);
 }
 
-// 画面中央に現在時刻を表示
+// 画面中央に現在時刻を表示(秒が変わったときだけ更新してちらつきを防止)
 void drawTime() {
-  M5.Lcd.fillRect(0, 40, M5.Lcd.width(), 40, BLACK);
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.setTextColor(WHITE);
-  M5.Lcd.setCursor(6, 54);
+  static int prev_sec = -1;
   checkLocalTime();
+  if (timeinfo.tm_sec == prev_sec) return;
+  prev_sec = timeinfo.tm_sec;
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.setTextColor(WHITE, BLACK); // 背景色付きで上書き描画(fillRect不要)
+  M5.Lcd.setCursor(6, 54);
   M5.Lcd.printf("%04d-%02d-%02d %02d:%02d:%02d\n",
                 timeinfo.tm_year + 1900,
                 timeinfo.tm_mon + 1,
