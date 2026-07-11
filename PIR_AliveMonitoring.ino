@@ -108,7 +108,14 @@ void send(String trigger, String value1, String value2) {
     client.println();
     Serial.print("Waiting for response ");
 
+    // 応答が無い場合は10秒でタイムアウト(本体が固まるのを防止)
+    unsigned long start_ms = millis();
     while (!client.available()) {
+      if (millis() - start_ms > 10000) {
+        Serial.println("\nResponse timeout.");
+        client.stop();
+        return;
+      }
       delay(50);
       Serial.print(".");
     }
