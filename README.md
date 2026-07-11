@@ -11,9 +11,7 @@
 
 ![死活監視システム本体](docs/images/photo_device.jpg)
 
-▼ 紹介動画(YouTube)
-
-[![デモ動画](https://img.youtube.com/vi/CHICFVoL_tc/maxresdefault.jpg)](https://www.youtube.com/watch?v=CHICFVoL_tc)
+[![YouTube](https://img.shields.io/badge/YouTube-%E7%B4%B9%E4%BB%8B%E5%8B%95%E7%94%BB%E3%82%92%E8%A6%8B%E3%82%8B-red?logo=youtube&logoColor=white&style=for-the-badge)](https://www.youtube.com/watch?v=CHICFVoL_tc)
 
 > 📖 プロジェクトの詳細・開発ストーリーは [ProtoPedia の作品ページ](https://protopedia.net/prototype/2432) をご覧ください。
 
