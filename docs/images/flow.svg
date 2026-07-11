@@ -50,12 +50,11 @@
   <g>
     <rect x="740" y="185" width="170" height="220" rx="10" fill="#f3e5f5" stroke="#ab47bc" stroke-width="2"/>
     <text x="825" y="215" text-anchor="middle" font-size="14" font-weight="bold" fill="#6a1b9a">ポイント</text>
-    <text x="825" y="245" text-anchor="middle" font-size="12" fill="#444">通知の間隔は</text>
-    <text x="825" y="265" text-anchor="middle" font-size="12" fill="#444">config.h の</text>
-    <text x="825" y="285" text-anchor="middle" font-size="12" fill="#444">LIMIT_TIME_SEC で</text>
+    <text x="825" y="245" text-anchor="middle" font-size="12" fill="#444">通知までの時間は</text>
+    <text x="825" y="265" text-anchor="middle" font-size="12" fill="#444">本体の設定ページ</text>
+    <text x="825" y="285" text-anchor="middle" font-size="12" fill="#444">(スマホのブラウザ)から</text>
     <text x="825" y="305" text-anchor="middle" font-size="12" fill="#444">自由に変更できます</text>
-    <text x="825" y="340" text-anchor="middle" font-size="12" fill="#444">(初期値: 86400秒</text>
-    <text x="825" y="360" text-anchor="middle" font-size="12" fill="#444">= 24時間)</text>
+    <text x="825" y="340" text-anchor="middle" font-size="12" fill="#444">(初期値: 24時間)</text>
   </g>
 
   <text x="480" y="440" text-anchor="middle" font-size="13" fill="#666">トイレや廊下など「生活していれば必ず1日1回は通る場所」に置くのがコツです</text>

@@ -29,8 +29,8 @@
 
   <!-- 注釈 -->
   <g font-size="14" fill="#555">
-    <text x="480" y="320" text-anchor="middle">上段:見守り状態(緑=見守り中/赤=停止中)… 本体のボタンAで切り替え</text>
+    <text x="480" y="320" text-anchor="middle">上段:見守り状態(緑=見守り中/赤=停止中)… ボタンAの長押しで切り替え</text>
     <text x="480" y="348" text-anchor="middle">中段:現在時刻(NTPから自動取得)</text>
-    <text x="480" y="376" text-anchor="middle">下段:PIRセンサの検出状態(緑=検出/青=未検出)</text>
+    <text x="480" y="376" text-anchor="middle">下段:検出状態(緑=検出/青=未検出)… 最後の動きから60秒間は「検出」表示を保持</text>
   </g>
 </svg>

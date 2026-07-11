@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 350" font-family="'Hiragino Sans','Yu Gothic','Meiryo',sans-serif">
+  <rect width="960" height="350" rx="12" fill="#fafafa" stroke="#e0e0e0"/>
+  <text x="480" y="42" text-anchor="middle" font-size="22" font-weight="bold" fill="#333">初期設定の流れ(スマホだけで完結)</text>
+
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#90a4ae"/>
+    </marker>
+  </defs>
+
+  <!-- Step 1 -->
+  <g>
+    <rect x="30" y="80" width="200" height="180" rx="12" fill="#e8f5e9" stroke="#66bb6a" stroke-width="2"/>
+    <text x="130" y="112" text-anchor="middle" font-size="15" font-weight="bold" fill="#2e7d32">① QRを読み取る</text>
+    <!-- QR風アイコン -->
+    <g fill="#333">
+      <rect x="95" y="130" width="70" height="70" fill="#fff" stroke="#999"/>
+      <rect x="100" y="135" width="18" height="18"/><rect x="142" y="135" width="18" height="18"/>
+      <rect x="100" y="177" width="18" height="18"/>
+      <rect x="126" y="140" width="6" height="6"/><rect x="132" y="152" width="6" height="6"/>
+      <rect x="120" y="164" width="6" height="6"/><rect x="140" y="164" width="8" height="8"/>
+      <rect x="126" y="180" width="6" height="6"/><rect x="148" y="180" width="6" height="6"/>
+    </g>
+    <text x="130" y="225" text-anchor="middle" font-size="12" fill="#444">本体画面のQRコードを</text>
+    <text x="130" y="243" text-anchor="middle" font-size="12" fill="#444">スマホのカメラで読む</text>
+  </g>
+  <line x1="230" y1="170" x2="272" y2="170" stroke="#90a4ae" stroke-width="3" marker-end="url(#arr)"/>
+
+  <!-- Step 2 -->
+  <g>
+    <rect x="275" y="80" width="200" height="180" rx="12" fill="#e3f2fd" stroke="#64b5f6" stroke-width="2"/>
+    <text x="375" y="112" text-anchor="middle" font-size="15" font-weight="bold" fill="#1565c0">② 本体に接続</text>
+    <g>
+      <path d="M 345 165 q 30 -28 60 0" stroke="#64b5f6" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M 355 178 q 20 -18 40 0" stroke="#64b5f6" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <circle cx="375" cy="192" r="6" fill="#1565c0"/>
+    </g>
+    <text x="375" y="225" text-anchor="middle" font-size="12" fill="#444">本体のWiFi(AP)に</text>
+    <text x="375" y="243" text-anchor="middle" font-size="12" fill="#444">自動で接続される</text>
+  </g>
+  <line x1="475" y1="170" x2="517" y2="170" stroke="#90a4ae" stroke-width="3" marker-end="url(#arr)"/>
+
+  <!-- Step 3 -->
+  <g>
+    <rect x="520" y="80" width="200" height="180" rx="12" fill="#fff3e0" stroke="#ffa726" stroke-width="2"/>
+    <text x="620" y="112" text-anchor="middle" font-size="15" font-weight="bold" fill="#e65100">③ 自宅WiFiを選択</text>
+    <rect x="580" y="128" width="80" height="76" rx="8" fill="#fff" stroke="#ccc"/>
+    <rect x="588" y="138" width="64" height="10" rx="3" fill="#eee"/>
+    <rect x="588" y="154" width="64" height="10" rx="3" fill="#ffe0b2"/>
+    <rect x="588" y="170" width="64" height="10" rx="3" fill="#eee"/>
+    <rect x="588" y="186" width="40" height="10" rx="5" fill="#ffa726"/>
+    <text x="620" y="225" text-anchor="middle" font-size="12" fill="#444">自動で開く設定ページで</text>
+    <text x="620" y="243" text-anchor="middle" font-size="12" fill="#444">自宅のWiFiを選んで保存</text>
+  </g>
+  <line x1="720" y1="170" x2="762" y2="170" stroke="#90a4ae" stroke-width="3" marker-end="url(#arr)"/>
+
+  <!-- Step 4 -->
+  <g>
+    <rect x="765" y="80" width="170" height="180" rx="12" fill="#f3e5f5" stroke="#ab47bc" stroke-width="2"/>
+    <text x="850" y="112" text-anchor="middle" font-size="15" font-weight="bold" fill="#6a1b9a">④ 通知を設定</text>
+    <rect x="815" y="128" width="70" height="76" rx="8" fill="#fff" stroke="#ccc"/>
+    <text x="850" y="152" text-anchor="middle" font-size="10" fill="#6a1b9a">場所: トイレ</text>
+    <text x="850" y="168" text-anchor="middle" font-size="10" fill="#6a1b9a">通知: 24時間</text>
+    <text x="850" y="184" text-anchor="middle" font-size="10" fill="#6a1b9a">IFTTTキー</text>
+    <text x="850" y="225" text-anchor="middle" font-size="11" fill="#444">pir-monitor-xxxx.local</text>
+    <text x="850" y="243" text-anchor="middle" font-size="12" fill="#444">を開いて設定・テスト</text>
+  </g>
+
+  <text x="480" y="305" text-anchor="middle" font-size="13" fill="#666">パソコンでのファイル編集は不要。書き込み後の設定はすべてスマホのブラウザから行えます</text>
+  <text x="480" y="328" text-anchor="middle" font-size="12" fill="#999">やり直したいときは本体のボタンBを5秒長押し → 初期設定モードに戻ります</text>
+</svg>

@@ -2,266 +2,436 @@
 //  PIR_AliveMonitoring
 //  M5StickC Plus + PIRセンサによる独り暮らし向け「死活監視システム」
 //
-//  一定時間(デフォルト24時間)動きが検出されなかった場合に
+//  一定時間(初期設定24時間)動きが検出されなかった場合に
 //  IFTTT経由で通知を送ります。動きが再検出された際には
 //  「生存確認」の通知を送ります。
+//
+//  初期設定はスマホから行います:
+//   1. 本体画面のQRコードを読み取って本体のWiFi(AP)に接続
+//   2. 自動で開く設定ページで自宅のWiFiを選択
+//   3. 再起動後、http://pir-monitor-xxxx.local で通知設定
+//
+//  ボタン操作:
+//   ボタンA 短押し = 設定ページのQRコード表示 / 戻る
+//   ボタンA 長押し = 見守りの開始・停止
+//   ボタンB 5秒長押し = WiFi設定をリセット(初期設定モードへ)
 //
 //  https://github.com/TsubokuLab/PIR_AliveMonitoring
 //  https://protopedia.net/prototype/2432
 // ============================================================
 #include <WiFi.h>
-#include <WiFiClient.h>
+#include <HTTPClient.h>
+#include <ESPmDNS.h>
+#include <DNSServer.h>
+#include <WebServer.h>
 #include <M5StickCPlus.h>
 #include "efont.h"
 #include "efontM5StickCPlus.h"
 #include "efontEnableJaMini.h"
 #include "time.h"
-#include "config.h" // WiFi・IFTTT・監視設定(config.h.exampleをコピーして作成)
 
-#define DAY_SEC 86400
-#define HOUR_SEC 3600
+#include "config.h"
+#include "styles.h"
+#include "settings.h"      // preferences・監視設定を定義
+#include "wifi_manager.h"
+#include "web_server.h"
 
-// IFTTT設定
-const char* server = "maker.ifttt.com"; // IFTTT Webhooks サーバー
-WiFiClient client;
+// ===== 動作モード・画面 =====
+DeviceMode deviceMode = SETUP_MODE;
+enum ScreenMode { SCREEN_MAIN, SCREEN_INFO };
+ScreenMode screenMode = SCREEN_MAIN;
+unsigned long infoScreenSince = 0;  // QR画面を開いた時刻(自動で戻る用)
 
-// 時刻管理
-const long gmtOffset_sec = 3600 * 9; // JST (UTC+9)
-const int daylightOffset_sec = 0;
-time_t t, sent_t, last_t;
+// ===== Web/WiFi 用グローバル(各ヘッダから extern 参照) =====
+String ssidList;
+String wifi_ssid;
+String wifi_password;
+int networkCount = 0;
+DNSServer dnsServer;
+WebServer webServer(WEB_SERVER_PORT);
+unsigned long lastWifiRetryMs = 0;
+
+// ===== 時刻 =====
+const long gmtOffset_sec = 3600 * 9;  // JST (UTC+9)
+time_t t = 0, sent_t = 0, last_t = 0;
 struct tm timeinfo;
 
-// ピン設定
-const int PIR_PIN = 36;      // PIR Hat の信号ピン (G36)
-const int LED_PIN = 10;      // 本体内蔵の赤色LED (LOWで点灯)
+// ===== 監視状態 =====
+bool AliveMonitoring = true;        // 見守り中かどうか
+bool LastSent = false;              // 未検出通知を送信済みかどうか
+bool rawDetect = false;             // PIRセンサの生の検出状態
+unsigned long lastRawDetectMs = 0;  // 最後に動きを検出した時刻(millis)
 
-// 状態フラグ
-bool detect = false, prev_detect = false;
-bool AliveMonitoring = true; // 見守り中かどうか(ボタンAで切り替え)
-bool LastSent = false;       // 未検出通知を送信済みかどうか
-bool force_redraw = true;    // 起動直後の初回描画用
+// ===== 画面描画の状態(ちらつき防止のため変化した部分だけ再描画) =====
+bool mainDirty = true;   // メイン画面の全再描画が必要か
+bool shownAlive = true;
+bool shownLatch = false;
+int  shownSec = -1;
 
-// WiFi接続待ち
-bool checkWifiConnected() {
-  M5.Lcd.setTextSize(1);
-  M5.Lcd.setTextColor(WHITE);
-  M5.Lcd.setCursor(0, 0);
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
-    M5.Lcd.print(".");
-    delay(500);
-  }
-  Serial.print("Connected to ");
-  Serial.println(WIFI_SSID);
-  M5.Lcd.println("WiFi connected");
-  M5.Lcd.print("IP address = ");
-  M5.Lcd.println(WiFi.localIP());
+// ============================================================
+//  ユーティリティ
+// ============================================================
 
-  delay(1000);
-  return true;
+// NTP同期済みかどうか(2020年以降なら有効とみなす)
+bool timeValid() { return t > 1600000000; }
+
+// 現在時刻を更新(ブロックしない)
+void updateClock() {
+    time(&t);
+    localtime_r(&t, &timeinfo);
 }
 
-// NTPサーバーから現在時刻を取得
-void checkLocalTime() {
-  while (!getLocalTime(&timeinfo)) {
-    M5.Lcd.println("Failed to obtain time");
-    Serial.println("Failed to obtain time");
-    configTime(gmtOffset_sec, daylightOffset_sec, "ntp.nict.jp", "ntp.jst.mfeed.ad.jp");
-    delay(1000);
-  }
-  time(&t);
+// 「検出」表示を保持中か(トイレの電気方式: 最後の動きから DETECT_HOLD_SEC 秒間)
+bool detectLatched() {
+    return lastRawDetectMs != 0 && (millis() - lastRawDetectMs) < (unsigned long)DETECT_HOLD_SEC * 1000UL;
 }
 
 // URLエンコード(日本語をURLに含められるようにする)
 String urlEncode(const String &s) {
-  String encoded = "";
-  char buf[4];
-  for (size_t i = 0; i < s.length(); i++) {
-    char c = s[i];
-    if (isalnum((unsigned char)c) || c == '-' || c == '_' || c == '.' || c == '~') {
-      encoded += c;
-    } else {
-      sprintf(buf, "%%%02X", (unsigned char)c);
-      encoded += buf;
+    String encoded = "";
+    char buf[4];
+    for (size_t i = 0; i < s.length(); i++) {
+        char c = s[i];
+        if (isalnum((unsigned char)c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            encoded += c;
+        } else {
+            sprintf(buf, "%%%02X", (unsigned char)c);
+            encoded += buf;
+        }
     }
-  }
-  return encoded;
-}
-
-// IFTTT Webhooksへ通知を送信
-void send(String trigger, String value1, String value2) {
-  while (!checkWifiConnected()) {
-    Serial.print("Attempting to connect to WiFi");
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-  }
-
-  Serial.println("\nStarting connection to server...");
-  if (!client.connect(server, 80)) {
-    Serial.println("Connection failed!");
-  } else {
-    Serial.println("Connected to server!");
-    String url = "/trigger/" + trigger + "/with/key/" + IFTTT_KEY;
-    url += "?value1=" + urlEncode(value1) + "&value2=" + urlEncode(value2);
-    client.println("GET " + url + " HTTP/1.1");
-    client.print("Host: ");
-    client.println(server);
-    client.println("Connection: close");
-    client.println();
-    Serial.print("Waiting for response ");
-
-    // 応答が無い場合は10秒でタイムアウト(本体が固まるのを防止)
-    unsigned long start_ms = millis();
-    while (!client.available()) {
-      if (millis() - start_ms > 10000) {
-        Serial.println("\nResponse timeout.");
-        client.stop();
-        break;
-      }
-      delay(50);
-      Serial.print(".");
-    }
-    while (client.available()) {
-      char c = client.read();
-      Serial.write(c);
-    }
-
-    if (!client.connected()) {
-      Serial.println();
-      Serial.println("disconnecting from server.");
-      client.stop();
-    }
-  }
-  // 送信中に画面へ描かれたWiFi接続メッセージを消して再描画させる
-  M5.Lcd.fillScreen(BLACK);
-  force_redraw = true;
-}
-
-void setup() {
-  M5.begin();
-  M5.Lcd.setRotation(3);
-  M5.Lcd.setTextColor(WHITE, BLACK);
-  M5.Lcd.fillScreen(BLACK);
-
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (!checkWifiConnected()) {
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-  }
-  delay(1000);
-
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, LOW);
-  AliveMonitoring = true;
-  // 現在時刻を取得してタイマーを初期化
-  checkLocalTime();
-  last_t = sent_t = t;
-  pinMode(PIR_PIN, INPUT_PULLUP);
-  // 起動時のWiFi接続メッセージを消してから通常画面へ
-  M5.Lcd.fillScreen(BLACK);
-}
-
-void loop() {
-  M5.update();
-  M5.Beep.update();
-  // ボタンAで見守りのON/OFFを切り替え
-  if (M5.BtnA.wasPressed()) {
-    ringBeep(3000, 100);
-    AliveMonitoring = !AliveMonitoring;
-  }
-  // 見守り状態の表示(ちらつき防止のため状態が変わったときだけ再描画)
-  static bool prev_alive = true;
-  if (AliveMonitoring != prev_alive || force_redraw) {
-    if (AliveMonitoring) {
-      M5.Lcd.fillRect(0, 0, M5.Lcd.width(), 40, GREEN);
-      M5.Lcd.setTextSize(2);
-      M5.Lcd.setTextColor(BLACK, GREEN);
-      printEfont("見守り中", 55, 4, 2);
-    } else {
-      M5.Lcd.fillRect(0, 0, M5.Lcd.width(), 40, RED);
-      M5.Lcd.setTextSize(2);
-      M5.Lcd.setTextColor(BLACK, RED);
-      printEfont("停止中", 70, 4, 2);
-    }
-    prev_alive = AliveMonitoring;
-  }
-  if (!AliveMonitoring) {
-    // 停止中はタイマーを進めない(再開時にゼロから計測)
-    last_t = sent_t = t;
-    LastSent = false;
-  }
-  // PIRセンサ読み取り
-  detect = digitalRead(PIR_PIN);
-  digitalWrite(LED_PIN, detect ? LOW : HIGH); // LOWで点灯
-  // 検出状態の表示(こちらも変化したときだけ再描画)
-  if (detect != prev_detect || force_redraw) {
-    if (detect) {
-      M5.Lcd.fillRect(0, 80, M5.Lcd.width(), 80, GREEN);
-      M5.Lcd.setTextColor(BLACK, GREEN);
-      printEfont("検出", 70, 85, 3);
-    } else {
-      M5.Lcd.fillRect(0, 80, M5.Lcd.width(), 80, BLUE);
-      M5.Lcd.setTextColor(WHITE, BLUE);
-      printEfont("未検出", 45, 85, 3);
-    }
-    Serial.println(detect ? "Detect!" : "Lost");
-  }
-  prev_detect = detect;
-  force_redraw = false; // ここから先でsend()が呼ばれると再度trueになり、次のループで再描画される
-  if (detect) {
-    // 未検出通知を送った後に動きを再検出した場合は「生存確認」を通知
-    if (LastSent) {
-      int _seconds = difftime(t, last_t);
-      send(EVENT_DETECT, PLACE_NAME, SecondsToTimeString(_seconds));
-      LastSent = false;
-    }
-    last_t = sent_t = t;
-  }
-  // 一定時間以上動きが検出されていない場合にIFTTTへ通知
-  double diff = difftime(t, sent_t);
-  double diff_total = difftime(t, last_t);
-  if (AliveMonitoring && diff >= LIMIT_TIME_SEC) {
-    send(EVENT_ALIVE, PLACE_NAME, SecondsToTimeString((int)diff_total));
-    sent_t = t; // タイマーリセット(通知の連続送信を防止)
-    ringBeep(3000, 500);
-    LastSent = true;
-  }
-  // 画面の時刻表示を更新
-  drawTime();
-  delay(500);
-}
-
-// 画面中央に現在時刻を表示(秒が変わったときだけ更新してちらつきを防止)
-void drawTime() {
-  static int prev_sec = -1;
-  checkLocalTime();
-  if (timeinfo.tm_sec == prev_sec) return;
-  prev_sec = timeinfo.tm_sec;
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.setTextColor(WHITE, BLACK); // 背景色付きで上書き描画(fillRect不要)
-  M5.Lcd.setCursor(6, 54);
-  M5.Lcd.printf("%04d-%02d-%02d %02d:%02d:%02d\n",
-                timeinfo.tm_year + 1900,
-                timeinfo.tm_mon + 1,
-                timeinfo.tm_mday,
-                timeinfo.tm_hour,
-                timeinfo.tm_min,
-                timeinfo.tm_sec);
+    return encoded;
 }
 
 // 経過秒数を「3日と5時間」のような文字列に変換
-String SecondsToTimeString(int _seconds) {
-  String _txt = "";
-  int _days = floor(_seconds / DAY_SEC);
-  if (_days > 0) {
-    _txt = String(_days) + "日";
-    int _hour = (int)(floor(_seconds % DAY_SEC) / HOUR_SEC);
-    if (_hour >= 1) _txt += "と" + String(_hour) + "時間";
-  } else {
-    _txt = String((int)(_seconds / HOUR_SEC)) + "時間";
-  }
-  return _txt;
+String SecondsToTimeString(long _seconds) {
+    String _txt = "";
+    long _days = _seconds / 86400;
+    if (_days > 0) {
+        _txt = String(_days) + "日";
+        long _hour = (_seconds % 86400) / 3600;
+        if (_hour >= 1) _txt += "と" + String(_hour) + "時間";
+    } else {
+        _txt = String(_seconds / 3600) + "時間";
+    }
+    return _txt;
+}
+
+// 最終検出からの経過を表示用文字列に(設定ページで使用)
+String lastDetectElapsedString() {
+    if (!timeValid() || last_t == 0) return "-";
+    long sec = (long)difftime(t, last_t);
+    if (sec < 60) return "たった今";
+    if (sec < 3600) return String(sec / 60) + "分前";
+    if (sec < 86400) return String(sec / 3600) + "時間前";
+    return String(sec / 86400) + "日前";
 }
 
 // ブザーを鳴らす
 void ringBeep(int pwm, int delaytime) {
-  M5.Beep.tone(pwm, delaytime);
+    M5.Beep.tone(pwm, delaytime);
+}
+
+// 再起動
+void rebootDevice() {
+    Serial.println("再起動します");
+    delay(500);
+    ESP.restart();
+}
+
+// ============================================================
+//  IFTTT通知
+// ============================================================
+
+// IFTTT Webhooksへ通知を送信(タイムアウト付き・ブロックしすぎない)
+bool sendIfttt(const String &event, const String &v1, const String &v2) {
+    if (!hasIftttKey()) {
+        Serial.println("IFTTTキー未設定のため通知をスキップ");
+        return false;
+    }
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("WiFi未接続のため通知をスキップ");
+        return false;
+    }
+    String url = "http://maker.ifttt.com/trigger/" + event + "/with/key/" + cfgIftttKey +
+                 "?value1=" + urlEncode(v1) + "&value2=" + urlEncode(v2);
+    Serial.println("IFTTT送信: " + event + " (" + v1 + " / " + v2 + ")");
+
+    HTTPClient http;
+    http.setConnectTimeout(IFTTT_TIMEOUT_MS);
+    http.setTimeout(IFTTT_TIMEOUT_MS);
+    if (!http.begin(url)) return false;
+    int code = http.GET();
+    http.end();
+    Serial.printf("IFTTT応答: %d\n", code);
+    return code >= 200 && code < 300;
+}
+
+// テスト通知(設定ページの「テスト通知を送信」ボタンから)
+bool sendIftttTest() {
+    return sendIfttt(cfgEventAlive, cfgPlaceName, "(テスト送信)");
+}
+
+// 見守りのON/OFF切り替え(ボタン長押し・設定ページ共通)
+void setMonitoring(bool on) {
+    if (AliveMonitoring == on) return;
+    AliveMonitoring = on;
+    if (on) {
+        last_t = sent_t = t;  // ゼロから計測を再開
+    }
+    LastSent = false;
+    ringBeep(3000, 100);
+    mainDirty = true;
+    Serial.println(on ? "見守りを開始" : "見守りを停止");
+}
+
+// ============================================================
+//  画面描画
+// ============================================================
+
+// メイン画面(見守り状態・時刻・検出状態)。変化した部分だけ再描画する。
+void updateMainScreen() {
+    bool latch = detectLatched();
+
+    if (mainDirty) {
+        M5.Lcd.fillScreen(BLACK);
+        shownSec = -1;  // 時刻も強制再描画
+    }
+    // 上段: 見守り状態
+    if (mainDirty || shownAlive != AliveMonitoring) {
+        if (AliveMonitoring) {
+            M5.Lcd.fillRect(0, 0, M5.Lcd.width(), 40, GREEN);
+            M5.Lcd.setTextColor(BLACK, GREEN);
+            printEfont("見守り中", 55, 4, 2);
+        } else {
+            M5.Lcd.fillRect(0, 0, M5.Lcd.width(), 40, RED);
+            M5.Lcd.setTextColor(BLACK, RED);
+            printEfont("停止中", 70, 4, 2);
+        }
+        shownAlive = AliveMonitoring;
+    }
+    // 下段: 検出状態(60秒間保持して表示)
+    if (mainDirty || shownLatch != latch) {
+        if (latch) {
+            M5.Lcd.fillRect(0, 80, M5.Lcd.width(), 55, GREEN);
+            M5.Lcd.setTextColor(BLACK, GREEN);
+            printEfont("検出", 70, 85, 3);
+        } else {
+            M5.Lcd.fillRect(0, 80, M5.Lcd.width(), 55, BLUE);
+            M5.Lcd.setTextColor(WHITE, BLUE);
+            printEfont("未検出", 45, 85, 3);
+        }
+        shownLatch = latch;
+    }
+    // 中段: 現在時刻(秒が変わったときだけ更新)
+    if (shownSec != timeinfo.tm_sec) {
+        shownSec = timeinfo.tm_sec;
+        M5.Lcd.setTextSize(2);
+        M5.Lcd.setTextColor(WHITE, BLACK);
+        M5.Lcd.setCursor(6, 54);
+        if (timeValid()) {
+            M5.Lcd.printf("%04d-%02d-%02d %02d:%02d:%02d",
+                          timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                          timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+        } else {
+            M5.Lcd.print("  ---- ---- ----  ");
+        }
+    }
+    mainDirty = false;
+}
+
+// 初期設定モードの画面(WiFi接続用QRコード)
+void drawSetupScreen() {
+    M5.Lcd.fillScreen(WHITE);
+    // スマホのカメラで読むとAPに接続できるWiFi QRコード
+    String qr = "WIFI:T:WPA;S:" + g_apSsid + ";P:" + String(AP_PASS) + ";;";
+    M5.Lcd.qrcode(qr.c_str(), 6, 6, 123, 7);
+
+    M5.Lcd.setTextColor(BLACK, WHITE);
+    printEfont("初期設定", 138, 8, 1);
+    printEfont("QRでWiFi接続", 138, 30, 1);
+
+    M5.Lcd.setTextSize(1);
+    M5.Lcd.setTextColor(0x39E7 /*濃いグレー*/, WHITE);
+    M5.Lcd.setCursor(138, 56);
+    M5.Lcd.print("SSID:");
+    M5.Lcd.setCursor(138, 66);
+    M5.Lcd.print(g_apSsid);
+    M5.Lcd.setCursor(138, 80);
+    M5.Lcd.print("PASS:");
+    M5.Lcd.setCursor(138, 90);
+    M5.Lcd.print(AP_PASS);
+    M5.Lcd.setCursor(138, 104);
+    M5.Lcd.print("URL:");
+    M5.Lcd.setCursor(138, 114);
+    M5.Lcd.print(AP_IP_ADDR.toString());
+}
+
+// 設定ページのQRコード画面(通常モードでボタンA短押し)
+void drawInfoScreen() {
+    M5.Lcd.fillScreen(WHITE);
+    String url = "http://" + g_mdnsHost + ".local";
+    M5.Lcd.qrcode(url.c_str(), 6, 6, 123, 7);
+
+    M5.Lcd.setTextColor(BLACK, WHITE);
+    printEfont("設定ページ", 138, 8, 1);
+
+    M5.Lcd.setTextSize(1);
+    M5.Lcd.setTextColor(0x39E7, WHITE);
+    M5.Lcd.setCursor(138, 34);
+    M5.Lcd.print("URL:");
+    M5.Lcd.setCursor(138, 44);
+    M5.Lcd.print(g_mdnsHost);
+    M5.Lcd.setCursor(138, 54);
+    M5.Lcd.print(".local");
+    M5.Lcd.setCursor(138, 72);
+    M5.Lcd.print("IP:");
+    M5.Lcd.setCursor(138, 82);
+    M5.Lcd.print(WiFi.localIP().toString());
+
+    printEfont("短押しで戻る", 138, 112, 1);
+}
+
+// ============================================================
+//  セットアップ
+// ============================================================
+void setup() {
+    M5.begin();
+    M5.Lcd.setRotation(3);
+    M5.Lcd.fillScreen(BLACK);
+    M5.Lcd.setTextColor(WHITE, BLACK);
+
+    loadAppSettings();
+    initDeviceIdentity();
+
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, HIGH);  // 消灯
+    pinMode(PIR_PIN, INPUT_PULLUP);
+
+    // 保存済みWiFiで接続を試みる
+    M5.Lcd.setTextSize(1);
+    M5.Lcd.setCursor(4, 4);
+    M5.Lcd.print("WiFi connecting...");
+    if (restoreConfig() && checkConnection()) {
+        // 接続成功 → 通常モード
+        deviceMode = APP_MODE;
+        startWebServer();
+        if (MDNS.begin(g_mdnsHost.c_str())) {
+            MDNS.addService("http", "tcp", WEB_SERVER_PORT);
+        }
+        Serial.println("通常モード: http://" + g_mdnsHost + ".local  IP=" + WiFi.localIP().toString());
+        // NTPで時刻同期(JST)
+        configTime(gmtOffset_sec, 0, "ntp.nict.jp", "ntp.jst.mfeed.ad.jp");
+        updateClock();
+        last_t = sent_t = t;
+        screenMode = SCREEN_MAIN;
+        mainDirty = true;
+    } else {
+        // 未設定 or 接続失敗 → 初期設定モード(アクセスポイント)
+        deviceMode = SETUP_MODE;
+        setupMode();
+        drawSetupScreen();
+    }
+}
+
+// ============================================================
+//  メインループ
+// ============================================================
+void loop() {
+    if (deviceMode == SETUP_MODE) dnsServer.processNextRequest();
+    webServer.handleClient();
+
+    M5.update();
+    M5.Beep.update();
+
+    // ===== ボタン操作 =====
+    // ボタンB 5秒長押し: WiFi設定をリセットして初期設定モードへ
+    if (M5.BtnB.wasReleasefor(RESET_HOLD_MS)) {
+        M5.Lcd.fillScreen(BLACK);
+        M5.Lcd.setTextColor(WHITE, BLACK);
+        printEfont("設定リセット中...", 10, 60, 1);
+        ringBeep(2000, 300);
+        delay(500);
+        resetSettings();  // クリアして再起動
+    }
+    if (deviceMode == APP_MODE) {
+        if (M5.BtnA.wasReleasefor(LONG_PRESS_MS)) {
+            // 長押し: 見守りの開始・停止
+            setMonitoring(!AliveMonitoring);
+            if (screenMode != SCREEN_MAIN) {
+                screenMode = SCREEN_MAIN;
+                mainDirty = true;
+            }
+        } else if (M5.BtnA.wasReleased()) {
+            // 短押し: 設定ページのQRコード表示 ⇔ メイン画面
+            if (screenMode == SCREEN_MAIN) {
+                screenMode = SCREEN_INFO;
+                infoScreenSince = millis();
+                drawInfoScreen();
+            } else {
+                screenMode = SCREEN_MAIN;
+                mainDirty = true;
+            }
+        }
+        // QR画面は一定時間で自動的にメイン画面へ戻る
+        if (screenMode == SCREEN_INFO && millis() - infoScreenSince > INFO_SCREEN_TIMEOUT_MS) {
+            screenMode = SCREEN_MAIN;
+            mainDirty = true;
+        }
+    }
+
+    // ===== 監視ロジック(通常モードのみ) =====
+    if (deviceMode == APP_MODE) {
+        // PIRセンサ読み取り(LEDは生のセンサ値にリアルタイム連動)
+        bool raw = digitalRead(PIR_PIN);
+        digitalWrite(LED_PIN, raw ? LOW : HIGH);  // LOWで点灯
+        if (raw && !rawDetect) Serial.println("Detect!");
+        if (!raw && rawDetect) Serial.println("Lost");
+        rawDetect = raw;
+        if (raw) {
+            lastRawDetectMs = millis();
+            if (timeValid()) {
+                // 未検出通知を送った後に動きを再検出した場合は「生存確認」を通知
+                if (LastSent && AliveMonitoring) {
+                    long elapsed = (long)difftime(t, last_t);
+                    sendIfttt(cfgEventDetect, cfgPlaceName, SecondsToTimeString(elapsed));
+                    LastSent = false;
+                }
+                last_t = sent_t = t;
+            }
+        }
+
+        // 500msごとの定期処理(時刻更新・画面更新・通知判定)
+        static unsigned long lastTickMs = 0;
+        if (millis() - lastTickMs >= 500) {
+            lastTickMs = millis();
+            updateClock();
+
+            if (!AliveMonitoring) {
+                // 停止中はタイマーを進めない(再開時にゼロから計測)
+                last_t = sent_t = t;
+                LastSent = false;
+            }
+
+            // 一定時間以上動きが検出されていない場合にIFTTTへ通知
+            if (AliveMonitoring && timeValid() && difftime(t, sent_t) >= limitTimeSec()) {
+                long total = (long)difftime(t, last_t);
+                sendIfttt(cfgEventAlive, cfgPlaceName, SecondsToTimeString(total));
+                sent_t = t;  // タイマーリセット(通知の連続送信を防止)
+                ringBeep(3000, 500);
+                LastSent = true;
+            }
+
+            // WiFiが切れていたら定期的に再接続を試みる
+            if (WiFi.status() != WL_CONNECTED && millis() - lastWifiRetryMs > WIFI_RETRY_INTERVAL_MS) {
+                lastWifiRetryMs = millis();
+                Serial.println("WiFi再接続を試行");
+                WiFi.reconnect();
+            }
+
+            // メイン画面の更新
+            if (screenMode == SCREEN_MAIN) updateMainScreen();
+        }
+    }
+
+    delay(5);
 }

@@ -1,5 +1,5 @@
-# 個人設定(WiFiパスワード・IFTTTキーを含むため絶対にコミットしない)
-config.h
+# v2.0.0以降、設定はすべて本体の設定ページから行うため
+# ソースコードに機密情報は含まれません
 
 # Arduino IDE / デバッグ用の自動生成ファイル
 debug.cfg
@@ -14,3 +14,6 @@ build/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Claude Code作業ファイル
+.claude/
