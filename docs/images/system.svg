@@ -59,7 +59,7 @@
     <text x="685" y="138" text-anchor="middle" font-size="7" fill="#555">トイレが1日使われて</text>
     <rect x="654" y="152" width="62" height="34" rx="6" fill="#fff" stroke="#cfd8dc"/>
     <text x="685" y="166" text-anchor="middle" font-size="8" fill="#2e7d32" font-weight="bold">✓ 生存確認</text>
-    <text x="685" y="178" text-anchor="middle" font-size="7" fill="#555">1日と2時間ぶりに使用</text>
+    <text x="685" y="178" text-anchor="middle" font-size="7" fill="#555">動きを検出しました</text>
     <text x="685" y="275" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">家族・友人のスマホ</text>
     <text x="685" y="295" text-anchor="middle" font-size="12" fill="#666">アプリ通知・メール</text>
     <text x="685" y="311" text-anchor="middle" font-size="12" fill="#666">Discordなど</text>
