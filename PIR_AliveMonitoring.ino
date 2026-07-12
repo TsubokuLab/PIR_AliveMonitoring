@@ -126,9 +126,22 @@ String lastDetectElapsedString() {
     return String(sec / 86400) + "日前";
 }
 
-// ブザーを鳴らす
-void ringBeep(int pwm, int delaytime) {
-    M5.Beep.tone(pwm, delaytime);
+// ===== ブザー =====
+// M5.BeepはESP32コア3.xのAPI変更で音が出ないため、内蔵ブザー(GPIO2)を直接制御する
+unsigned long beepUntilMs = 0;
+
+// ブザーを鳴らす(指定時間後にupdateBeep()が止める)
+void ringBeep(int freq, int durationMs) {
+    ledcWriteTone(BUZZER_PIN, freq);
+    beepUntilMs = millis() + durationMs;
+}
+
+// 鳴動時間が過ぎたらブザーを止める(loopから毎回呼ぶ)
+void updateBeep() {
+    if (beepUntilMs != 0 && millis() >= beepUntilMs) {
+        ledcWriteTone(BUZZER_PIN, 0);
+        beepUntilMs = 0;
+    }
 }
 
 // 再起動
@@ -306,6 +319,7 @@ void setup() {
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, HIGH);  // 消灯
     pinMode(PIR_PIN, INPUT_PULLUP);
+    ledcAttach(BUZZER_PIN, 4000, 10);  // ブザー初期化(コア3.xのピン指定API)
 
     // 保存済みWiFiで接続を試みる
     M5.Lcd.setTextSize(1);
@@ -341,7 +355,7 @@ void loop() {
     webServer.handleClient();
 
     M5.update();
-    M5.Beep.update();
+    updateBeep();
 
     // ===== ボタン操作 =====
     // ボタンB 5秒長押し: WiFi設定をリセットして初期設定モードへ
@@ -350,26 +364,34 @@ void loop() {
         M5.Lcd.setTextColor(WHITE, BLACK);
         printEfont("設定リセット中...", 10, 60, 1);
         ringBeep(2000, 300);
-        delay(500);
+        delay(400);
+        updateBeep();     // ブザーを止めてから再起動
         resetSettings();  // クリアして再起動
     }
     if (deviceMode == APP_MODE) {
-        if (M5.BtnA.wasReleasefor(LONG_PRESS_MS)) {
-            // 長押し: 見守りの開始・停止
-            setMonitoring(!AliveMonitoring);
-            if (screenMode != SCREEN_MAIN) {
-                screenMode = SCREEN_MAIN;
-                mainDirty = true;
-            }
-        } else if (M5.BtnA.wasReleased()) {
-            // 短押し: 設定ページのQRコード表示 ⇔ メイン画面
-            if (screenMode == SCREEN_MAIN) {
-                screenMode = SCREEN_INFO;
-                infoScreenSince = millis();
-                drawInfoScreen();
+        // 長押し(1秒): 押している途中でビープと共に見守りON/OFFを即切り替え
+        static bool longHandled = false;
+        if (M5.BtnA.pressedFor(LONG_PRESS_MS) && !longHandled) {
+            longHandled = true;
+            setMonitoring(!AliveMonitoring);  // ビープはこの中で鳴る
+            if (screenMode != SCREEN_MAIN) screenMode = SCREEN_MAIN;
+            updateClock();
+            updateMainScreen();  // ボタンを離すのを待たずに即画面へ反映
+        }
+        if (M5.BtnA.wasReleased()) {
+            if (longHandled) {
+                longHandled = false;  // 長押し処理済みなら短押し動作はしない
             } else {
-                screenMode = SCREEN_MAIN;
-                mainDirty = true;
+                // 短押し: 設定ページのQRコード表示 ⇔ メイン画面
+                ringBeep(2000, 50);  // 操作音
+                if (screenMode == SCREEN_MAIN) {
+                    screenMode = SCREEN_INFO;
+                    infoScreenSince = millis();
+                    drawInfoScreen();
+                } else {
+                    screenMode = SCREEN_MAIN;
+                    mainDirty = true;
+                }
             }
         }
         // QR画面は一定時間で自動的にメイン画面へ戻る

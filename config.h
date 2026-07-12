@@ -37,15 +37,16 @@ enum DeviceMode {
 
 // ===== 動作設定 =====
 #define DETECT_HOLD_SEC 60          // 「検出」表示を保持する秒数(トイレの電気方式)
-#define LONG_PRESS_MS 800           // ボタンA長押し判定(見守りON/OFF)
+#define LONG_PRESS_MS 1000          // ボタンA長押し判定(見守りON/OFF)。押しながらこの時間で即切り替え
 #define INFO_SCREEN_TIMEOUT_MS 60000 // 設定QR画面から自動で戻るまでの時間
 #define RESET_HOLD_MS 5000          // ボタンB長押しでWiFi設定リセット
 #define IFTTT_TIMEOUT_MS 10000      // IFTTT送信のタイムアウト
 #define WIFI_RETRY_INTERVAL_MS 60000 // WiFi切断時の再接続試行間隔
 
 // ===== ハードウェア =====
-#define PIR_PIN 36  // PIR Hat の信号ピン(G36)
-#define LED_PIN 10  // 本体内蔵の赤色LED(LOWで点灯)
+#define PIR_PIN 36     // PIR Hat の信号ピン(G36)
+#define LED_PIN 10     // 本体内蔵の赤色LED(LOWで点灯)
+#define BUZZER_PIN 2   // 内蔵ブザー(M5.BeepはESP32コア3.xで鳴らないため直接制御)
 
 // ===== Web UI(設定ページ)スタイル =====
 #define CONTAINER_MAX_WIDTH "480px"

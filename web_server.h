@@ -98,7 +98,7 @@ String settingsPageHtml() {
 
     // ===== 監視設定 =====
     s += "<label style='margin-top:20px;'>📍 場所の名前(通知に含まれます):</label>";
-    s += "<input id='placeIn' maxlength='32' value='" + cfgPlaceName + "' oninput='onMonChange()'>";
+    s += "<input id='placeIn' maxlength='32' value='" + cfgPlaceName + "' placeholder='例: リビング' oninput='onMonChange()'>";
     s += "<label>⏰ 通知までの時間:</label>";
     s += "<div style='display:flex;align-items:center;gap:8px;'>";
     s += "<select id='hoursSel' onchange='onMonChange()' style='width:auto;flex:none;margin:0;'>" + limitHoursOptionsHtml() + "</select>";
