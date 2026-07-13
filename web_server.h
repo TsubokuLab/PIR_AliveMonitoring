@@ -107,9 +107,11 @@ String settingsPageHtml() {
     s += "<button type='button' id='monBtn' class='btn' disabled onclick='saveMon()'>💾 監視設定を保存</button>";
 
     // ===== IFTTT設定 =====
+    // 保存済みのキーはマスク("********")で表示。マスクのまま保存してもキーは変更されない。
+    String keyMask = hasIftttKey() ? "********" : "";
     s += "<label style='margin-top:24px;'>🔔 IFTTT設定:</label>";
-    String keyPlaceholder = hasIftttKey() ? "(設定済み。変更する場合のみ入力)" : "IFTTTのWebhooksキーを入力";
-    s += "<input id='keyIn' type='password' placeholder='" + keyPlaceholder + "' maxlength='64' oninput='onIftttChange()'>";
+    s += "<div style='font-size:13px;margin:-2px 0 8px;'><a href='https://ifttt.com/maker_webhooks' target='_blank' rel='noopener' style='color:#059669;'>🔗 Webhooksキーの確認ページを開く</a><span style='color:#6b7280;'>(Documentation をクリックするとキーが表示されます)</span></div>";
+    s += "<input id='keyIn' type='password' value='" + keyMask + "' placeholder='IFTTTのWebhooksキーを入力' maxlength='64' oninput='onIftttChange()'>";
     s += "<details><summary>詳細設定(イベント名)</summary>";
     s += "<label>未検出通知のイベント名:</label>";
     s += "<input id='ev1In' value='" + cfgEventAlive + "' maxlength='32' oninput='onIftttChange()'>";
@@ -127,15 +129,19 @@ String settingsPageHtml() {
     s += "<script>";
     s += "var _tt;function toast(m,e){var t=document.getElementById('toast');t.textContent=m;t.className='toast show'+(e?' err':'');clearTimeout(_tt);_tt=setTimeout(function(){t.className='toast'+(e?' err':'');},2600);}";
     s += "var placeBase=document.getElementById('placeIn').value,hoursBase=document.getElementById('hoursSel').value;";
+    s += "var keyBase=document.getElementById('keyIn').value;";
     s += "var ev1Base=document.getElementById('ev1In').value,ev2Base=document.getElementById('ev2In').value;";
     s += "function onMonChange(){document.getElementById('monBtn').disabled=(document.getElementById('placeIn').value==placeBase&&document.getElementById('hoursSel').value==hoursBase);}";
-    s += "function onIftttChange(){document.getElementById('iftttBtn').disabled=(document.getElementById('keyIn').value==''&&document.getElementById('ev1In').value==ev1Base&&document.getElementById('ev2In').value==ev2Base);}";
+    s += "function onIftttChange(){document.getElementById('iftttBtn').disabled=(document.getElementById('keyIn').value==keyBase&&document.getElementById('ev1In').value==ev1Base&&document.getElementById('ev2In').value==ev2Base);}";
     s += "function saveMon(){var p=document.getElementById('placeIn').value.trim(),h=document.getElementById('hoursSel').value,btn=document.getElementById('monBtn');";
     s += "if(!p){toast('場所の名前を入力してください',1);return;}btn.disabled=true;btn.textContent='保存中...';";
     s += "fetch('/setmonitor?place='+encodeURIComponent(p)+'&hours='+encodeURIComponent(h)).then(function(r){if(!r.ok)throw 0;}).then(function(){placeBase=p;hoursBase=h;btn.textContent='💾 監視設定を保存';toast('📍 監視設定を保存しました');}).catch(function(){btn.disabled=false;btn.textContent='💾 監視設定を保存';toast('保存に失敗しました',1);});}";
     s += "function saveIfttt(){var k=document.getElementById('keyIn').value.trim(),e1=document.getElementById('ev1In').value.trim(),e2=document.getElementById('ev2In').value.trim(),btn=document.getElementById('iftttBtn');";
+    s += "if(k==keyBase||k=='********')k='';";  // マスクのまま=キー変更なし
     s += "btn.disabled=true;btn.textContent='保存中...';";
-    s += "fetch('/setifttt?key='+encodeURIComponent(k)+'&ev1='+encodeURIComponent(e1)+'&ev2='+encodeURIComponent(e2)).then(function(r){if(!r.ok)throw 0;}).then(function(){ev1Base=e1;ev2Base=e2;document.getElementById('keyIn').value='';btn.textContent='💾 IFTTT設定を保存';document.getElementById('testBtn').disabled=false;toast('🔔 IFTTT設定を保存しました');}).catch(function(){btn.disabled=false;btn.textContent='💾 IFTTT設定を保存';toast('保存に失敗しました',1);});}";
+    s += "fetch('/setifttt?key='+encodeURIComponent(k)+'&ev1='+encodeURIComponent(e1)+'&ev2='+encodeURIComponent(e2)).then(function(r){if(!r.ok)throw 0;}).then(function(){ev1Base=e1;ev2Base=e2;";
+    s += "if(k){keyBase='********';}document.getElementById('keyIn').value=keyBase;";  // 保存後はマスク表示に戻す
+    s += "btn.textContent='💾 IFTTT設定を保存';if(keyBase=='********'){document.getElementById('testBtn').disabled=false;}toast('🔔 IFTTT設定を保存しました');}).catch(function(){btn.disabled=false;btn.textContent='💾 IFTTT設定を保存';toast('保存に失敗しました',1);});}";
     s += "function sendTest(){var btn=document.getElementById('testBtn');btn.disabled=true;btn.textContent='送信中...';";
     s += "fetch('/test').then(function(r){if(!r.ok)throw 0;return r.text();}).then(function(x){btn.disabled=false;btn.textContent='📨 テスト通知を送信';if(x=='ok'){toast('📨 テスト通知を送信しました。スマホに届けば設定OKです');}else{toast('送信に失敗しました。キーやネット接続を確認してください',1);}}).catch(function(){btn.disabled=false;btn.textContent='📨 テスト通知を送信';toast('送信に失敗しました',1);});}";
     s += "function toggleMon(){var btn=document.getElementById('toggleBtn');btn.disabled=true;";
@@ -221,9 +227,11 @@ void startWebServer() {
             webServer.send(200, "text/plain", "ok");
         });
 
-        // IFTTT設定の保存(Ajax)。keyが空なら既存キーを維持。
+        // IFTTT設定の保存(Ajax)。keyが空またはマスクのままなら既存キーを維持。
         webServer.on("/setifttt", []() {
-            saveIftttSettings(webServer.arg("key"), webServer.arg("ev1"), webServer.arg("ev2"));
+            String key = webServer.arg("key");
+            if (key == "********") key = "";
+            saveIftttSettings(key, webServer.arg("ev1"), webServer.arg("ev2"));
             Serial.println("IFTTT設定を保存");
             webServer.sendHeader("Cache-Control", "no-store");
             webServer.send(200, "text/plain", "ok");
