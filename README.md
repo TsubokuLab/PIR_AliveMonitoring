@@ -1,4 +1,4 @@
-# PIR_AliveMonitoring — 独り暮らし向け「死活監視システム」
+# PIR見守りモニター (PIR_AliveMonitoring)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-M5StickC%20Plus-orange.svg)](https://docs.m5stack.com/en/core/m5stickc_plus)
@@ -11,7 +11,7 @@
 
 **v2.0.0から、面倒な設定はすべてスマホで完結。** 書き込んだら本体のQRコードを読み取るだけで、WiFi接続・場所の名前・通知時間・IFTTTキーをブラウザから設定できます。ソースコードの編集は一切不要です。
 
-![死活監視システム本体](docs/images/photo_device.jpg)
+![PIR見守りモニター本体](docs/images/photo_device.jpg)
 
 [![YouTube](https://img.shields.io/badge/YouTube-%E7%B4%B9%E4%BB%8B%E5%8B%95%E7%94%BB%E3%82%92%E8%A6%8B%E3%82%8B-red?logo=youtube&logoColor=white&style=for-the-badge)](https://www.youtube.com/watch?v=CHICFVoL_tc)
 

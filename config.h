@@ -8,7 +8,7 @@
 #include <IPAddress.h>
 
 // ===== 基本情報 =====
-#define APP_TITLE "PIR死活監視"
+#define APP_TITLE "PIR見守りモニター"
 #define APP_VERSION "v2.0.0"
 #define AUTHOR_NAME "Teruaki Tsubokura"
 #define AUTHOR_URL "https://teruaki-tsubokura.com/"
