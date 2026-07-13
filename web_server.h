@@ -39,6 +39,14 @@ String copyUrlScript() {
     return s;
 }
 
+// 指定文字数分の "*" を生成(保存済みキーの長さに合わせたマスク表示用)
+String maskString(size_t len) {
+    String s;
+    s.reserve(len);
+    for (size_t i = 0; i < len; i++) s += '*';
+    return s;
+}
+
 // 設定モードのWiFi設定ページ(1画面)。キャプティブポータルが直接これを表示する。
 String wifiSetupHtml() {
     String s = "<h1>👀 " + String(APP_TITLE) + "</h1>";
@@ -107,8 +115,8 @@ String settingsPageHtml() {
     s += "<button type='button' id='monBtn' class='btn' disabled onclick='saveMon()'>💾 監視設定を保存</button>";
 
     // ===== IFTTT設定 =====
-    // 保存済みのキーはマスク("********")で表示。マスクのまま保存してもキーは変更されない。
-    String keyMask = hasIftttKey() ? "********" : "";
+    // 保存済みのキーは実際の文字数分の"*"で表示。マスクのまま保存してもキーは変更されない。
+    String keyMask = hasIftttKey() ? maskString(cfgIftttKey.length()) : "";
     s += "<label style='margin-top:24px;'>🔔 IFTTT Webhooksキーを入力:</label>";
     s += "<input id='keyIn' type='password' value='" + keyMask + "' placeholder='例: gXAbUcOm70dbmSlSTSj...' maxlength='64' oninput='onIftttChange()'>";
     s += "<div style='font-size:13px;margin:-6px 0 10px;'><a href='https://ifttt.com/maker_webhooks' target='_blank' rel='noopener' style='color:#059669;'>🔗 キーの確認ページを開く(IFTTT Webhooks)</a><br><span style='color:#6b7280;'>開いたページで Documentation をクリックするとキーが表示されます</span></div>";
@@ -137,11 +145,11 @@ String settingsPageHtml() {
     s += "if(!p){toast('場所の名前を入力してください',1);return;}btn.disabled=true;btn.textContent='保存中...';";
     s += "fetch('/setmonitor?place='+encodeURIComponent(p)+'&hours='+encodeURIComponent(h)).then(function(r){if(!r.ok)throw 0;}).then(function(){placeBase=p;hoursBase=h;btn.textContent='💾 監視設定を保存';toast('📍 監視設定を保存しました');}).catch(function(){btn.disabled=false;btn.textContent='💾 監視設定を保存';toast('保存に失敗しました',1);});}";
     s += "function saveIfttt(){var k=document.getElementById('keyIn').value.trim(),e1=document.getElementById('ev1In').value.trim(),e2=document.getElementById('ev2In').value.trim(),btn=document.getElementById('iftttBtn');";
-    s += "if(k==keyBase||k=='********')k='';";  // マスクのまま=キー変更なし
+    s += "if(k==keyBase)k='';";  // マスク(表示時のまま)=キー変更なし
     s += "btn.disabled=true;btn.textContent='保存中...';";
-    s += "fetch('/setifttt?key='+encodeURIComponent(k)+'&ev1='+encodeURIComponent(e1)+'&ev2='+encodeURIComponent(e2)).then(function(r){if(!r.ok)throw 0;}).then(function(){ev1Base=e1;ev2Base=e2;";
-    s += "if(k){keyBase='********';}document.getElementById('keyIn').value=keyBase;";  // 保存後はマスク表示に戻す
-    s += "btn.textContent='💾 IFTTT設定を保存';if(keyBase=='********'){document.getElementById('testBtn').disabled=false;}toast('🔔 IFTTT設定を保存しました');}).catch(function(){btn.disabled=false;btn.textContent='💾 IFTTT設定を保存';toast('保存に失敗しました',1);});}";
+    s += "fetch('/setifttt?key='+encodeURIComponent(k)+'&ev1='+encodeURIComponent(e1)+'&ev2='+encodeURIComponent(e2)).then(function(r){if(!r.ok)throw 0;return r.text();}).then(function(newLen){ev1Base=e1;ev2Base=e2;";
+    s += "if(k){keyBase=Array(parseInt(newLen)+1).join('*');}document.getElementById('keyIn').value=keyBase;";  // 保存後は新しい長さのマスク表示に戻す
+    s += "btn.textContent='💾 IFTTT設定を保存';if(keyBase.length>0){document.getElementById('testBtn').disabled=false;}toast('🔔 IFTTT設定を保存しました');}).catch(function(){btn.disabled=false;btn.textContent='💾 IFTTT設定を保存';toast('保存に失敗しました',1);});}";
     s += "function sendTest(){var btn=document.getElementById('testBtn');btn.disabled=true;btn.textContent='送信中...';";
     s += "fetch('/test').then(function(r){if(!r.ok)throw 0;return r.text();}).then(function(x){btn.disabled=false;btn.textContent='📨 テスト通知を送信';if(x=='ok'){toast('📨 テスト通知を送信しました。スマホに届けば設定OKです');}else{toast('送信に失敗しました。キーやネット接続を確認してください',1);}}).catch(function(){btn.disabled=false;btn.textContent='📨 テスト通知を送信';toast('送信に失敗しました',1);});}";
     s += "function toggleMon(){var btn=document.getElementById('toggleBtn');btn.disabled=true;";
@@ -227,14 +235,19 @@ void startWebServer() {
             webServer.send(200, "text/plain", "ok");
         });
 
-        // IFTTT設定の保存(Ajax)。keyが空またはマスクのままなら既存キーを維持。
+        // IFTTT設定の保存(Ajax)。keyが空、または全て"*"(マスク)なら既存キーを維持。
+        // 保存後のキー文字数を返す(設定ページがマスク表示の長さを更新するため)。
         webServer.on("/setifttt", []() {
             String key = webServer.arg("key");
-            if (key == "********") key = "";
+            bool isMask = key.length() > 0;
+            for (unsigned int i = 0; i < key.length(); i++) {
+                if (key.charAt(i) != '*') { isMask = false; break; }
+            }
+            if (isMask) key = "";
             saveIftttSettings(key, webServer.arg("ev1"), webServer.arg("ev2"));
             Serial.println("IFTTT設定を保存");
             webServer.sendHeader("Cache-Control", "no-store");
-            webServer.send(200, "text/plain", "ok");
+            webServer.send(200, "text/plain", String(cfgIftttKey.length()));
         });
 
         // テスト通知(Ajax)
