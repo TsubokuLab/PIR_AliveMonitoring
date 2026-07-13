@@ -61,6 +61,8 @@ bool AliveMonitoring = true;        // 見守り中かどうか
 bool LastSent = false;              // 未検出通知を送信済みかどうか
 bool rawDetect = false;             // PIRセンサの生の検出状態
 unsigned long lastRawDetectMs = 0;  // 最後に動きを検出した時刻(millis)
+bool timersInitialized = false;     // NTP同期後にタイマーを初期化したか(1970年誤判定の防止)
+bool hasDetectRecord = false;       // 起動後に一度でも動きを記録したか
 
 // ===== 画面描画の状態(ちらつき防止のため変化した部分だけ再描画) =====
 bool mainDirty = true;   // メイン画面の全再描画が必要か
@@ -118,7 +120,7 @@ String SecondsToTimeString(long _seconds) {
 
 // 最終検出からの経過を表示用文字列に(設定ページで使用)
 String lastDetectElapsedString() {
-    if (!timeValid() || last_t == 0) return "-";
+    if (!timeValid() || !hasDetectRecord) return "-(再起動後の検知なし)";
     long sec = (long)difftime(t, last_t);
     if (sec < 60) return "たった今";
     if (sec < 3600) return String(sec / 60) + "分前";
@@ -411,14 +413,18 @@ void loop() {
         rawDetect = raw;
         if (raw) {
             lastRawDetectMs = millis();
-            if (timeValid()) {
+            if (timersInitialized) {
                 // 未検出通知を送った後に動きを再検出した場合は「生存確認」を通知
                 if (LastSent && AliveMonitoring) {
-                    long elapsed = (long)difftime(t, last_t);
-                    sendIfttt(cfgEventDetect, cfgPlaceName, SecondsToTimeString(elapsed));
+                    // 再起動後にまだ検知記録が無い場合は経過時間の代わりにその旨を送る
+                    String prev = hasDetectRecord
+                                      ? SecondsToTimeString((long)difftime(t, last_t))
+                                      : "不明(再起動後はじめての検知)";
+                    sendIfttt(cfgEventDetect, cfgPlaceName, prev);
                     LastSent = false;
                 }
                 last_t = sent_t = t;
+                hasDetectRecord = true;
             }
         }
 
@@ -428,6 +434,15 @@ void loop() {
             lastTickMs = millis();
             updateClock();
 
+            // NTP同期が完了した時点でタイマーを初期化する
+            // (setup時点では同期前で時刻が1970年のため、ここで初期化しないと
+            //  「20647日と10時間前」のような誤った経過時間が通知されてしまう)
+            if (!timersInitialized && timeValid()) {
+                last_t = sent_t = t;
+                timersInitialized = true;
+                Serial.println("時刻同期完了、計測を開始");
+            }
+
             if (!AliveMonitoring) {
                 // 停止中はタイマーを進めない(再開時にゼロから計測)
                 last_t = sent_t = t;
@@ -435,7 +450,7 @@ void loop() {
             }
 
             // 一定時間以上動きが検出されていない場合にIFTTTへ通知
-            if (AliveMonitoring && timeValid() && difftime(t, sent_t) >= limitTimeSec()) {
+            if (timersInitialized && AliveMonitoring && difftime(t, sent_t) >= limitTimeSec()) {
                 long total = (long)difftime(t, last_t);
                 sendIfttt(cfgEventAlive, cfgPlaceName, SecondsToTimeString(total));
                 sent_t = t;  // タイマーリセット(通知の連続送信を防止)
