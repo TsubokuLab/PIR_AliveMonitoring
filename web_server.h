@@ -109,9 +109,9 @@ String settingsPageHtml() {
     // ===== IFTTT設定 =====
     // 保存済みのキーはマスク("********")で表示。マスクのまま保存してもキーは変更されない。
     String keyMask = hasIftttKey() ? "********" : "";
-    s += "<label style='margin-top:24px;'>🔔 IFTTT設定:</label>";
-    s += "<div style='font-size:13px;margin:-2px 0 8px;'><a href='https://ifttt.com/maker_webhooks' target='_blank' rel='noopener' style='color:#059669;'>🔗 Webhooksキーの確認ページを開く</a><span style='color:#6b7280;'>(Documentation をクリックするとキーが表示されます)</span></div>";
-    s += "<input id='keyIn' type='password' value='" + keyMask + "' placeholder='IFTTTのWebhooksキーを入力' maxlength='64' oninput='onIftttChange()'>";
+    s += "<label style='margin-top:24px;'>🔔 IFTTT Webhooksキーを入力:</label>";
+    s += "<input id='keyIn' type='password' value='" + keyMask + "' placeholder='例: gXAbUcOm70dbmSlSTSj...' maxlength='64' oninput='onIftttChange()'>";
+    s += "<div style='font-size:13px;margin:-6px 0 10px;'><a href='https://ifttt.com/maker_webhooks' target='_blank' rel='noopener' style='color:#059669;'>🔗 キーの確認ページを開く(IFTTT Webhooks)</a><br><span style='color:#6b7280;'>開いたページで Documentation をクリックするとキーが表示されます</span></div>";
     s += "<details><summary>詳細設定(イベント名)</summary>";
     s += "<label>未検出通知のイベント名:</label>";
     s += "<input id='ev1In' value='" + cfgEventAlive + "' maxlength='32' oninput='onIftttChange()'>";
