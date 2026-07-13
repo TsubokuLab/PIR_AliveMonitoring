@@ -151,7 +151,7 @@ String settingsPageHtml() {
     s += "if(k){keyBase=Array(parseInt(newLen)+1).join('*');}document.getElementById('keyIn').value=keyBase;";  // 保存後は新しい長さのマスク表示に戻す
     s += "btn.textContent='💾 IFTTT設定を保存';if(keyBase.length>0){document.getElementById('testBtn').disabled=false;}toast('🔔 IFTTT設定を保存しました');}).catch(function(){btn.disabled=false;btn.textContent='💾 IFTTT設定を保存';toast('保存に失敗しました',1);});}";
     s += "function sendTest(){var btn=document.getElementById('testBtn');btn.disabled=true;btn.textContent='送信中...';";
-    s += "fetch('/test').then(function(r){if(!r.ok)throw 0;return r.text();}).then(function(x){btn.disabled=false;btn.textContent='📨 テスト通知を送信';if(x=='ok'){toast('📨 テスト通知を送信しました。スマホに届けば設定OKです');}else{toast('送信に失敗しました。キーやネット接続を確認してください',1);}}).catch(function(){btn.disabled=false;btn.textContent='📨 テスト通知を送信';toast('送信に失敗しました',1);});}";
+    s += "fetch('/test').then(function(r){if(!r.ok)throw 0;return r.text();}).then(function(x){btn.disabled=false;btn.textContent='📨 テスト通知を送信';if(x=='ok'){toast('📨 テスト通知を送信しました。設定した通知先(アプリ通知・メール・Discordなど)に届けばOKです');}else{toast('送信に失敗しました。キーやネット接続を確認してください',1);}}).catch(function(){btn.disabled=false;btn.textContent='📨 テスト通知を送信';toast('送信に失敗しました',1);});}";
     s += "function toggleMon(){var btn=document.getElementById('toggleBtn');btn.disabled=true;";
     s += "fetch('/toggle').then(function(r){if(!r.ok)throw 0;return r.text();}).then(function(x){var on=(x=='1');document.getElementById('monState').textContent=on?'✅ 見守り中':'⏸ 停止中';btn.textContent=on?'⏸ 見守りを停止する':'▶ 見守りを開始する';btn.disabled=false;toast(on?'✅ 見守りを開始しました':'⏸ 見守りを停止しました');}).catch(function(){btn.disabled=false;toast('切り替えに失敗しました',1);});}";
     s += "</script>";
